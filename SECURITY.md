@@ -11,9 +11,11 @@ The runtime applies a 30-second wall-clock timeout by default, configurable
 through `timeout_ms`; CPU limits alone do not stop a sleeping process.
 
 Seccomp rules constrain syscall entry points, but denying `socket` alone does
-not guarantee a process has no network access: an inherited socket descriptor
-could still be used. The caller must close or control inherited descriptors
-and sanitize the child's environment. The current runtime does not set up a
+not guarantee a process has no network access: standard input/output/error
+could themselves be inherited sockets. MoonJail marks all other inherited
+descriptors close-on-exec before applying the policy; if the kernel cannot do
+this, setup fails at stage 7. The caller must control standard streams and
+sanitize the child's environment. The current runtime does not set up a
 network namespace or isolate the parent process. On timeout it kills the
 child process group, but a descendant that deliberately leaves that group may
 survive. Do not treat this as a complete hostile-process-tree containment

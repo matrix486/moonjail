@@ -32,6 +32,10 @@
 #define LANDLOCK_ACCESS_FS_TRUNCATE (1ULL << 14)
 #endif
 
+#ifndef CLOSE_RANGE_CLOEXEC
+#define CLOSE_RANGE_CLOEXEC (1U << 2)
+#endif
+
 static int set_one_limit(int resource, int64_t value) {
   if (value < 0) {
     return 0;
@@ -188,6 +192,18 @@ static void report_setup_failure(int fd, int stage) {
   _exit(125);
 }
 
+static int isolate_inherited_fds(void) {
+#if defined(__NR_close_range)
+  // The setup pipe is already O_CLOEXEC. Marking the full range preserves it
+  // for pre-exec error reporting while keeping inherited handles out of the
+  // untrusted program. Do not fall back to an incomplete descriptor scan.
+  return (int)syscall(__NR_close_range, 3U, ~0U, CLOSE_RANGE_CLOEXEC);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+
 static int64_t monotonic_millis(void) {
   struct timespec now;
   if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
@@ -252,6 +268,9 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
     close(setup_pipe[0]);
     if (setpgid(0, 0) < 0) {
       report_setup_failure(setup_pipe[1], 6);
+    }
+    if (isolate_inherited_fds() < 0) {
+      report_setup_failure(setup_pipe[1], 7);
     }
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
       report_setup_failure(setup_pipe[1], 1);

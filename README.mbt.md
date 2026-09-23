@@ -24,6 +24,7 @@ moon run cmd/moonjail -- explain
 moon run cmd/moonjail -- demo
 moon run cmd/moonjail -- check examples/deny-socket.json
 moon run cmd/moonjail -- explain-profile examples/deny-socket.json
+bash examples/agent-tool-smoke.sh
 ```
 
 `demo` shows a network socket rejected by seccomp, a declared file read, an
@@ -32,6 +33,9 @@ after its policy grants access. It prints structured JSON statuses. The
 successful retry reads zero bytes so it does not display the file contents.
 The demo uses MoonJail's own `probe-socket` subcommand as the test child. To
 test another command, use `run-deny-socket <command> [args...]`.
+The agent-tool scenario hashes an allowed fixture, rejects a disallowed file,
+and verifies that a file descriptor opened by the parent cannot bypass the
+Landlock policy. Its editable policy is `examples/read-only-tool.json`.
 
 ## MoonBit API
 
@@ -79,7 +83,10 @@ The one-page [application summary](application-one-page.md) and
 [development record](docs/development-record.md) are prepared for review.
 
 MoonJail limits a non-root child; it is not a container runtime. The caller
-must control inherited environment variables and file descriptors. See
+must control inherited environment variables and standard streams. All
+non-standard descriptors are marked close-on-exec before the child runs; this
+requires Linux `close_range` with `CLOSE_RANGE_CLOEXEC` (kernel 5.11+), or
+execution fails closed. See
 [SECURITY.md](SECURITY.md) for the threat model and
 [CONTRIBUTING.md](CONTRIBUTING.md) for development guidance.
 

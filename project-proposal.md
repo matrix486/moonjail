@@ -108,7 +108,7 @@ Compiler   Planner   Planner
 3. compiler 生成 `SandboxPlan`：BPF instructions、Landlock rules、rlimits 和最低内核能力。
 4. `explain` 可在不执行命令时展示允许/拒绝面和降级风险。
 5. Linux runtime fork 子进程，在 exec 前按固定顺序施加限制。
-6. 父进程按墙钟超时等待，收集退出、signal、超时或设置失败状态，并记录 Landlock ABI，生成 `SandboxResult`。
+6. 子进程将非标准继承描述符标为 close-on-exec，避免预打开文件绕过 Landlock；父进程按墙钟超时等待，收集退出、signal、超时或设置失败状态，并记录 Landlock ABI，生成 `SandboxResult`。
 
 ### API Design
 

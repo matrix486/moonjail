@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "read-only-tool",
+  "default_action": { "kind": "allow" },
+  "syscall_rules": [
+    { "name": "socket", "action": { "kind": "errno", "errno": 13 } }
+  ],
+  "path_rules": [
+    { "path": "/usr", "rights": [ "read_file", "read_dir", "execute" ] },
+    { "path": "/lib", "rights": [ "read_file", "read_dir", "execute" ] },
+    { "path": "/lib64", "rights": [ "read_file", "read_dir", "execute" ] },
+    { "path": "/etc/ld.so.cache", "rights": [ "read_file" ] },
+    { "path": "./runtime/fixtures/allowed.txt", "rights": [ "read_file" ] }
+  ],
+  "limits": { "cpu_seconds": 2, "open_files": 32 },
+  "require_landlock": true
+}

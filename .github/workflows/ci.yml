@@ -40,6 +40,7 @@ jobs:
           status=$?
           set -e
           test "$status" -eq 10
+          bash examples/agent-tool-smoke.sh
 
   portable:
     name: Portable policy compiler
