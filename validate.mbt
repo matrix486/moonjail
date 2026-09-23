@@ -40,9 +40,17 @@ pub fn validate_policy(policy : Policy) -> Array[Diagnostic] {
       _ => ()
     }
   }
+  let paths : Map[String, Bool] = Map([])
   for rule in policy.path_rules {
     if rule.path.trim().is_empty() {
       diagnostics.push({ code: "MJ004", message: "path must not be empty", })
+    } else if paths.contains(rule.path) {
+      diagnostics.push({
+        code: "MJ012",
+        message: "duplicate path rule: \{rule.path}",
+      })
+    } else {
+      paths[rule.path] = true
     }
     if rule.path.contains("\u{0}") ||
       rule.path.contains("\n") ||

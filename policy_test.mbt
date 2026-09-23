@@ -87,6 +87,31 @@ test "path delimiters cannot alter serialized Landlock rules" {
 }
 
 ///|
+test "duplicate path rules cannot silently combine permissions" {
+  let policy = @moonjail.Policy::deny_by_default()
+    .allow_read("./workspace")
+    .allow_write("./workspace")
+  try @moonjail.compile(policy, X86_64) catch {
+    InvalidPolicy(diagnostics) => {
+      assert_eq(diagnostics.length(), 1)
+      assert_eq(diagnostics[0].code, "MJ012")
+      assert_true(diagnostics[0].message.contains("./workspace"))
+    }
+    _ => fail("unexpected compile error")
+  } noraise {
+    _ => fail("expected duplicate path rule to fail")
+  }
+}
+
+///|
+test "nested path rules remain valid" {
+  let policy = @moonjail.Policy::deny_by_default()
+    .allow_read("./workspace")
+    .allow_write("./workspace/out")
+  assert_true(@moonjail.validate_policy(policy).is_empty())
+}
+
+///|
 test "explanation names syscall decisions and resource limits" {
   let policy = @moonjail.Policy::deny_by_default()
     .allow_syscall("read")

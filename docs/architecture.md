@@ -34,6 +34,9 @@ parsing. A parsed policy must still pass `compile` before execution. Actions
 use `{ "kind": "allow" }`, `{ "kind": "errno", "errno": 13 }`, `trap`,
 `log`, or `kill_process`. Path rights are `read_file`, `read_dir`, `write_file`,
 `remove`, `make_node`, `execute`, and `refer`.
+An exact duplicate path rule is rejected (`MJ012`) instead of silently
+combining its permissions with another rule. Rules for distinct nested paths
+remain valid, so a child directory can deliberately receive more rights.
 
 ## Kernel compatibility
 
