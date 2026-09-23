@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "magic486/moonjail/runtime"
+package "matrix486/moonjail/runtime"
 
 import {
-  "magic486/moonjail",
+  "matrix486/moonjail",
   "moonbitlang/core/debug",
 }
 

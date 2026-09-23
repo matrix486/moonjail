@@ -1,4 +1,4 @@
-name = "magic486/moonjail"
+name = "matrix486/moonjail"
 
 version = "0.1.0"
 

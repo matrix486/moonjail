@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "magic486/moonjail/cmd/moonjail"
+package "matrix486/moonjail/cmd/moonjail"
 
 import {
   "moonbitlang/core/debug",

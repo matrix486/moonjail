@@ -1,6 +1,6 @@
 import {
-  "magic486/moonjail" @sandbox,
-  "magic486/moonjail/runtime",
+  "matrix486/moonjail" @sandbox,
+  "matrix486/moonjail/runtime",
   "moonbitlang/core/env",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/fs",
