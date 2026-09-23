@@ -1,9 +1,14 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "magic486/moonjail/cmd/moonjail"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 
 // Errors
+type DemoFailure derive(@debug.Debug)
 
 // Types and methods
 

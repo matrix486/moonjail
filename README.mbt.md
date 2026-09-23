@@ -8,6 +8,9 @@ requires Linux.
 The v0.1 prototype runs on Linux x86_64 and has been exercised on a host with
 Landlock ABI 8. Native execution on aarch64 and the built-in presets there
 still need hardware validation before a release.
+The latest local verification used MoonBit `0.1.20260920`, Ubuntu x86_64
+kernel `7.0.0-31-generic`, and GCC `15.2.0`; portable checks also passed on
+Windows with MoonBit `0.1.20260915`.
 
 ## Try the three-minute demo
 

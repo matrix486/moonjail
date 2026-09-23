@@ -13,7 +13,7 @@ pub fn is_supported() -> Bool
 
 pub fn landlock_abi() -> Int
 
-pub fn run(@moonjail.SandboxPlan, String, args? : Array[String]) -> SandboxResult raise RuntimeError
+pub fn run(@moonjail.SandboxPlan, String, args? : Array[String], timeout_ms? : Int) -> SandboxResult raise RuntimeError
 
 // Errors
 pub(all) suberror RuntimeError {
@@ -22,6 +22,7 @@ pub(all) suberror RuntimeError {
   LandlockUnavailable
   InvalidCommand
   NativeFailure(Int)
+  InvalidTimeout
 } derive(@debug.Debug)
 pub fn RuntimeError::to_repr(Self) -> @debug.Repr
 
@@ -29,6 +30,7 @@ pub fn RuntimeError::to_repr(Self) -> @debug.Repr
 pub(all) enum RunStatus {
   Exited(Int)
   Signaled(Int)
+  TimedOut
   SetupFailed(stage~ : Int, errno~ : Int)
 } derive(Eq, ToJson, @debug.Debug)
 pub fn RunStatus::equal(Self, Self) -> Bool
