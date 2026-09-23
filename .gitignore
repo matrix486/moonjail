@@ -7,3 +7,5 @@
 *.so
 *.dylib
 
+# Private application draft: keep out of GitHub and Mooncakes packages.
+/submission-application-private.md
