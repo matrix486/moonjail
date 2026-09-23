@@ -99,16 +99,16 @@ Compiler   Planner   Planner
 | `runtime` | Linux capability probe、apply plan、受限进程启动；非 Linux 返回 typed UnsupportedPlatform |
 | root `profile.mbt` | JSON profile 的解析、版本化与诊断 |
 | `cmd/moonjail` | `check`、`explain`、`explain-profile`、`run`、`demo` CLI |
-| `examples/*` | 可编辑的版本化策略文件；后续增加 AI tool 与 build step 示例 |
+| `examples/*` | 可编辑的版本化策略文件；AI tool 与 build step 的专门示例列为后续集成任务 |
 
 ### Data Flow
 
 1. 用户通过 builder 或 JSON 创建 `Policy`。
-2. validator 检查空规则、互相冲突的 action、不可移植 syscall、无效路径与危险默认值。
+2. validator 检查空规则、重复 syscall、未知 syscall、无效路径字符与非法资源限额；当前不做路径规范化或自动 rights 合并。
 3. compiler 生成 `SandboxPlan`：BPF instructions、Landlock rules、rlimits 和最低内核能力。
 4. `explain` 可在不执行命令时展示允许/拒绝面和降级风险。
 5. Linux runtime fork 子进程，在 exec 前按固定顺序施加限制。
-6. 父进程收集退出状态或 signal，并记录 Landlock ABI，生成 `SandboxResult`。
+6. 父进程按墙钟超时等待，收集退出、signal、超时或设置失败状态，并记录 Landlock ABI，生成 `SandboxResult`。
 
 ### API Design
 
@@ -120,7 +120,7 @@ let policy = @moonjail.Policy::from_profile(ConsoleTool)
   .limit_memory(134217728L)
 
 let plan = @moonjail.compile(policy, X86_64)
-let report = @runtime.run(plan, "./tool", args=["input.json"])
+let report = @runtime.run(plan, "./tool", args=["input.json"], timeout_ms=30000)
 ```
 
 设计原则：
@@ -142,7 +142,7 @@ let report = @runtime.run(plan, "./tool", args=["input.json"])
 - seccomp classic-BPF compiler、verifier、disassembler；
 - Landlock read/write/execute 规则计划与 ABI probe；
 - `PR_SET_NO_NEW_PRIVS`、rlimit 与 seccomp/Landlock apply；
-- Linux 子进程执行与结构化结果；
+- Linux 子进程执行、墙钟超时与结构化结果；
 - 非 Linux 上可运行的 compile/explain，runtime 明确报不支持。
 
 ### Demo
@@ -158,7 +158,7 @@ let report = @runtime.run(plan, "./tool", args=["input.json"])
 - BPF jump 与 instruction limit；
 - syscall allow/deny 编译快照；
 - 不同 architecture audit value；
-- Landlock rights 合并与路径规范化；
+- Landlock 读、写、执行拒绝与 ABI 缺失时 fail-closed；
 - profile JSON round-trip 与错误诊断；
 - Linux CI integration tests：文件、网络、rlimit 与 exec；
 - `moon check --target all` 覆盖纯逻辑包，native Linux 覆盖 runtime。
@@ -168,7 +168,7 @@ let report = @runtime.run(plan, "./tool", args=["input.json"])
 - README：目标、威胁模型、安装、快速开始、支持矩阵；
 - `SECURITY.md`：不保证的边界、内核版本与 fail-closed 行为；
 - API docs 与可执行 `README.mbt.md` 示例；
-- `CONTRIBUTING.md` 与 architecture decision records；
+- `CONTRIBUTING.md`、架构说明与开发记录；
 - 来源与许可证说明。
 
 ### 非目标
@@ -189,14 +189,14 @@ let report = @runtime.run(plan, "./tool", args=["input.json"])
 
 ### 30–120 秒：代码
 
-- 展示约 10 行 Policy builder。
+- 展示约 10 行 Policy builder 与可编辑 JSON 策略。
 - 运行 `moonjail explain`：终端显示 syscall、文件 rights、rlimit 和 kernel capability。
 - 运行同一工具：workspace 读取成功，敏感文件与网络被内核拒绝。
 - 展示 JSON result 与 stderr，区分受限命令的非零退出与沙箱设置失败。
 
 ### 120–180 秒：效果
 
-- 切换只读构建 preset，执行真实编译/转换命令成功。
+- 为同一个文件读取命令补一条授权路径，展示从拒绝到允许的变化。
 - 展示 Linux CI 四类 integration tests 全绿。
 - 最后展示生态接入图：Agent、CI、plugin host、online judge 都复用同一个 `SandboxPlan` API。
 
@@ -233,8 +233,8 @@ seccomp + Landlock + rlimit + CLI + tests + docs。
 
 - 原创项目，不是现有 MoonBit 包移植；
 - MoonBit 为主要实现语言；
-- 计划规模 4–8k 有效 MoonBit 行；
+- MoonBit 为策略与编译器主体，C 仅封装 Linux syscall/进程启动；不以代码行数充当验收指标；
 - Apache-2.0 许可证；
 - CI 覆盖 check/build/test 与 Linux integration；
 - 提供可运行 demo、核心测试、README 与 Mooncakes 发布准备；
-- 仓库提交应保持 10–20 个以上有意义的阶段性提交，不做空提交或机械拆分。
+- 仓库保留真实阶段性提交与开发记录，不做空提交或机械拆分。

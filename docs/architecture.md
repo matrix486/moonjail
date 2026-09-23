@@ -10,12 +10,18 @@ sets `PR_SET_NO_NEW_PRIVS`, applies Landlock, resource limits, and seccomp, then
 calls `execvp` in the child. A close-on-exec pipe carries setup failures to the
 parent, so a setup error is distinguishable from the command's exit code.
 
-The parent remains outside the sandbox and waits for the child. The current
-result records exit or signal status and the probed Landlock ABI. The child
+The parent remains outside the sandbox and waits for the child with a
+monotonic wall-clock deadline (30 seconds by default). On timeout it sends
+SIGKILL to the child's process group and reaps the direct child. The result
+records exit, signal, timeout, or setup-failure status and the probed
+Landlock ABI. The child
 inherits its parent's environment and already-open standard streams. MoonJail
 therefore expects the caller to control environment variables and inherited
 file descriptors before invoking untrusted programs. It does not isolate
 processes through namespaces or cgroups.
+It is not a hardened process-tree supervisor: a descendant that creates a
+new session can escape the child's process group. Callers handling hostile
+forking workloads need a cgroup or namespace boundary in addition.
 
 ## Policy document v1
 
@@ -40,3 +46,9 @@ aarch64 Linux host remains a pre-release task.
 On x86_64, the audit architecture identifier is shared with the x32 ABI.
 The compiler rejects syscall numbers with the x32 bit before evaluating policy
 rules. See the [seccomp manual](https://man7.org/linux/man-pages/man2/seccomp.2.html).
+
+## Design sources
+
+- [Linux kernel seccomp filter guide](https://docs.kernel.org/userspace-api/seccomp_filter.html): syscall filtering and `no_new_privs` requirements; seccomp alone is not a complete sandbox.
+- [Linux kernel Landlock guide](https://docs.kernel.org/userspace-api/landlock.html): handled filesystem rights, ABI compatibility, and inherited restrictions.
+- [Linux `setrlimit(2)` manual](https://man7.org/linux/man-pages/man2/getrlimit.2.html): resource-limit semantics.

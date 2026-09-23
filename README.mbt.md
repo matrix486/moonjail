@@ -11,8 +11,9 @@ still need hardware validation before a release.
 
 ## Try the three-minute demo
 
-Install the current MoonBit toolchain and a C compiler. From the repository
-root on Linux:
+Install the current MoonBit toolchain and a C compiler. The demo needs only
+the project binary and standard Linux `cat`/`head` utilities; it does not
+require Python or a network service. From the repository root on Linux:
 
 ```sh
 moon run cmd/moonjail -- capabilities
@@ -26,8 +27,8 @@ moon run cmd/moonjail -- explain-profile examples/deny-socket.json
 undeclared `/etc/passwd` read rejected by Landlock, and the same read succeeding
 after its policy grants access. It prints structured JSON statuses. The
 successful retry reads zero bytes so it does not display the file contents.
-Use `moon run cmd/moonjail -- run-deny-socket /usr/bin/python3 -c 'import socket; socket.socket()'`
-to test a command directly.
+The demo uses MoonJail's own `probe-socket` subcommand as the test child. To
+test another command, use `run-deny-socket <command> [args...]`.
 
 ## MoonBit API
 
@@ -44,8 +45,9 @@ test "compile a console tool policy" {
 }
 ```
 
-The runtime API is `@runtime.run(plan, command, args=[...])`. It reports
-`Exited(code)`, `Signaled(signal)`, or `SetupFailed(stage, errno)` and can
+The runtime API is `@runtime.run(plan, command, args=[...], timeout_ms=30000)`.
+It reports `Exited(code)`, `Signaled(signal)`, `TimedOut`, or
+`SetupFailed(stage, errno)` and can
 serialize a result to JSON. `Policy::to_json` and `Policy::from_json` provide a
 versioned policy document; `compile` checks it before execution. The
 [architecture guide](docs/architecture.md) describes the schema and process
@@ -60,9 +62,18 @@ moon test --target native
 moon build --target native
 ```
 
-Linux integration tests exercise seccomp and Landlock. On Windows, runtime
+Linux integration tests use Bash and standard coreutils to exercise seccomp
+and Landlock. On Windows, runtime
 tests confirm the unsupported-platform result while the portable compiler
 tests still run.
+
+The CLI returns 0 on success, 2 for usage errors, 3 for invalid input or
+runtime setup errors, and 10 when a sandboxed command exits unsuccessfully,
+is signaled, times out, or cannot be executed. Diagnostics for input/setup
+errors go to stderr; `run` still prints its structured result to stdout.
+
+The one-page [application summary](application-one-page.md) and
+[development record](docs/development-record.md) are prepared for review.
 
 MoonJail limits a non-root child; it is not a container runtime. The caller
 must control inherited environment variables and file descriptors. See
