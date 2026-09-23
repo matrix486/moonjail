@@ -21,6 +21,7 @@
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef LANDLOCK_ACCESS_FS_REFER
@@ -187,6 +188,14 @@ static void report_setup_failure(int fd, int stage) {
   _exit(125);
 }
 
+static int64_t monotonic_millis(void) {
+  struct timespec now;
+  if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
+    return -1;
+  }
+  return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
 MOONBIT_FFI_EXPORT int32_t moonjail_platform(void) { return 1; }
 
 MOONBIT_FFI_EXPORT int32_t moonjail_architecture(void) {
@@ -215,7 +224,7 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
     uint32_t *words, moonbit_bytes_t argv_blob, moonbit_bytes_t paths_blob,
     int32_t require_landlock, int32_t cpu_seconds,
     int64_t address_space_bytes, int64_t file_size_bytes, int32_t open_files,
-    int32_t processes) {
+    int32_t processes, int32_t timeout_ms) {
   int32_t word_count = Moonbit_array_length(words);
   int32_t argv_length = Moonbit_array_length(argv_blob);
   int32_t paths_length = Moonbit_array_length(paths_blob);
@@ -224,7 +233,7 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
     return -errno;
   }
   int setup_pipe[2];
-  if (pipe2(setup_pipe, O_CLOEXEC) < 0) {
+  if (pipe2(setup_pipe, O_CLOEXEC | O_NONBLOCK) < 0) {
     free(argv[0]);
     free(argv);
     return -errno;
@@ -241,6 +250,9 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
   }
   if (child == 0) {
     close(setup_pipe[0]);
+    if (setpgid(0, 0) < 0) {
+      report_setup_failure(setup_pipe[1], 6);
+    }
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
       report_setup_failure(setup_pipe[1], 1);
     }
@@ -261,18 +273,71 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
     report_setup_failure(setup_pipe[1], 5);
   }
   close(setup_pipe[1]);
-  int setup[2] = {0, 0};
-  ssize_t setup_bytes = read(setup_pipe[0], setup, sizeof(setup));
-  close(setup_pipe[0]);
-  int status = 0;
-  if (waitpid(child, &status, 0) < 0) {
+  (void)setpgid(child, child);
+  int64_t started = monotonic_millis();
+  if (started < 0) {
     int saved = errno;
+    kill(-child, SIGKILL);
+    kill(child, SIGKILL);
+    waitpid(child, NULL, 0);
+    close(setup_pipe[0]);
     free(argv[0]);
     free(argv);
     return -saved;
   }
+  int setup[2] = {0, 0};
+  ssize_t setup_bytes = -1;
+  int status = 0;
+  int failure = 0;
+  int timed_out = 0;
+  while (1) {
+    if (setup_bytes < 0) {
+      ssize_t read_bytes = read(setup_pipe[0], setup, sizeof(setup));
+      if (read_bytes >= 0) {
+        setup_bytes = read_bytes;
+      } else if (errno != EAGAIN && errno != EINTR) {
+        failure = errno;
+        break;
+      }
+    }
+    pid_t waited = waitpid(child, &status, WNOHANG);
+    if (waited == child) {
+      if (setup_bytes < 0) {
+        setup_bytes = read(setup_pipe[0], setup, sizeof(setup));
+      }
+      break;
+    }
+    if (waited < 0 && errno != EINTR) {
+      failure = errno;
+      break;
+    }
+    int64_t now = monotonic_millis();
+    if (now < 0) {
+      failure = errno;
+      break;
+    }
+    if (now - started >= timeout_ms) {
+      timed_out = 1;
+      break;
+    }
+    struct timespec pause = {.tv_sec = 0, .tv_nsec = 10000000};
+    nanosleep(&pause, NULL);
+  }
+  if (timed_out || failure) {
+    kill(-child, SIGKILL);
+    kill(child, SIGKILL);
+    while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {
+    }
+  }
+  close(setup_pipe[0]);
   free(argv[0]);
   free(argv);
+  if (failure) {
+    return -failure;
+  }
+  if (timed_out) {
+    return 3000000LL;
+  }
   if (setup_bytes == (ssize_t)sizeof(setup)) {
     return 2000000LL + (int64_t)setup[0] * 1000LL + setup[1];
   }
@@ -294,7 +359,7 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
     uint32_t *words, moonbit_bytes_t argv_blob, moonbit_bytes_t paths_blob,
     int32_t require_landlock, int32_t cpu_seconds,
     int64_t address_space_bytes, int64_t file_size_bytes, int32_t open_files,
-    int32_t processes) {
+    int32_t processes, int32_t timeout_ms) {
   (void)words;
   (void)argv_blob;
   (void)paths_blob;
@@ -304,6 +369,7 @@ MOONBIT_FFI_EXPORT int64_t moonjail_run(
   (void)file_size_bytes;
   (void)open_files;
   (void)processes;
+  (void)timeout_ms;
   return -1;
 }
 

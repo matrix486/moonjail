@@ -23,6 +23,23 @@ jobs:
         run: moon test --target native
       - name: Build CLI
         run: moon build --target native
+      - name: Smoke-test CLI and demo
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          moon run cmd/moonjail -- check examples/deny-socket.json
+          moon run cmd/moonjail -- demo
+          set +e
+          moon run cmd/moonjail -- check missing-profile.json 2> cli-error.txt
+          status=$?
+          set -e
+          test "$status" -eq 3
+          grep -q 'moonjail:' cli-error.txt
+          set +e
+          moon run cmd/moonjail -- run examples/deny-socket.json /usr/bin/false
+          status=$?
+          set -e
+          test "$status" -eq 10
 
   portable:
     name: Portable policy compiler

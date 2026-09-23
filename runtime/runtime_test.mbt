@@ -32,12 +32,12 @@ test "linux seccomp denies socket creation" {
       .deny_syscall("socket", errno=13)
       .with_landlock_required(false)
     let plan = @moonjail.compile(policy, architecture)
-    let result = @runtime.run(plan, "/usr/bin/python3", args=[
-      "-c", "import socket; socket.socket()",
+    let result = @runtime.run(plan, "/usr/bin/bash", args=[
+      "-c", "echo > /dev/tcp/127.0.0.1/1",
     ])
     match result.status {
       Exited(code) => assert_true(code != 0)
-      _ => fail("python should report a denied socket as a non-zero exit")
+      _ => fail("bash should report a denied socket as a non-zero exit")
     }
   }
 }
@@ -69,8 +69,8 @@ test "linux enforces CPU resource limit" {
       .limit_cpu(1),
       @runtime.current_architecture(),
     )
-    let result = @runtime.run(plan, "/usr/bin/python3", args=[
-      "-c", "while True: pass",
+    let result = @runtime.run(plan, "/usr/bin/bash", args=[
+      "-c", "while :; do :; done",
     ])
     match result.status {
       Signaled(_) => ()
@@ -122,6 +122,73 @@ test "linux landlock allows declared path and denies undeclared path" {
     match denied.status {
       Exited(code) => assert_true(code != 0)
       _ => fail("cat should receive a filesystem denial")
+    }
+  }
+}
+
+///|
+test "linux wall-clock timeout stops a sleeping child" {
+  if @runtime.is_supported() {
+    let plan = @moonjail.compile(
+      @moonjail.Policy::allow_by_default().with_landlock_required(false),
+      @runtime.current_architecture(),
+    )
+    let result = @runtime.run(
+      plan,
+      "/usr/bin/sleep",
+      args=["3"],
+      timeout_ms=100,
+    )
+    assert_eq(result.status, TimedOut)
+    let follow_up = @runtime.run(plan, "/usr/bin/true")
+    assert_eq(follow_up.status, Exited(0))
+  }
+}
+
+///|
+test "linux rejects a nonpositive wall-clock timeout" {
+  if @runtime.is_supported() {
+    let plan = @moonjail.compile(
+      @moonjail.Policy::allow_by_default().with_landlock_required(false),
+      @runtime.current_architecture(),
+    )
+    try @runtime.run(plan, "/usr/bin/true", timeout_ms=0) catch {
+      InvalidTimeout => ()
+      _ => fail("expected InvalidTimeout")
+    } noraise {
+      _ => fail("zero timeout must not launch a child")
+    }
+  }
+}
+
+///|
+test "linux Landlock denies write and execute independently" {
+  if @runtime.is_supported() && @runtime.landlock_abi() >= 3 {
+    let read_only = @moonjail.compile(
+      landlock_test_policy(),
+      @runtime.current_architecture(),
+    )
+    let write = @runtime.run(read_only, "/usr/bin/tee", args=[
+      "./runtime/fixtures/allowed.txt",
+    ])
+    match write.status {
+      Exited(code) => assert_true(code != 0)
+      _ => fail("write attempt should be rejected by the tool")
+    }
+    let no_execute = @moonjail.compile(
+      @moonjail.Policy::allow_by_default()
+      .allow_path("/usr", [ReadFile, ReadDir])
+      .allow_path("/lib", [ReadFile, ReadDir, Execute])
+      .allow_path("/lib64", [ReadFile, ReadDir, Execute]),
+      @runtime.current_architecture(),
+    )
+    let execute = @runtime.run(no_execute, "/usr/bin/true")
+    match execute.status {
+      SetupFailed(stage~, errno~) => {
+        assert_eq(stage, 5)
+        assert_eq(errno, 13)
+      }
+      _ => fail("execve should fail with EACCES")
     }
   }
 }

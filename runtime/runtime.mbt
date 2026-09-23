@@ -3,6 +3,7 @@
 pub(all) enum RunStatus {
   Exited(Int)
   Signaled(Int)
+  TimedOut
   SetupFailed(stage~ : Int, errno~ : Int)
 } derive(Debug, Eq, ToJson)
 
@@ -29,6 +30,7 @@ pub(all) suberror RuntimeError {
   LandlockUnavailable
   InvalidCommand
   NativeFailure(Int)
+  InvalidTimeout
 } derive(Debug)
 
 ///|
@@ -70,6 +72,7 @@ extern "C" fn run_ffi(
   file_size_bytes : Int64,
   open_files : Int,
   processes : Int,
+  timeout_ms : Int,
 ) -> Int64 = "moonjail_run"
 
 ///|
@@ -145,18 +148,35 @@ fn optional_int64(value : Int64?) -> Int64 {
 }
 
 ///|
+fn check_landlock(
+  plan : @moonjail.SandboxPlan,
+  abi : Int,
+) -> Unit raise RuntimeError {
+  // ABI 3 is needed to deny truncation. Earlier ABIs would silently leave
+  // that operation outside the handled rights set.
+  if (plan.require_landlock || !plan.path_rules.is_empty()) && abi < 3 {
+    raise LandlockUnavailable
+  }
+}
+
+///|
 /// Run a command after applying Landlock, resource limits, and seccomp in the
-/// child. Setup failures are reported separately from the command's exit code.
+/// child. Setup failures and wall-clock timeout are reported separately from
+/// the command's exit code. The timeout defaults to 30 seconds.
 pub fn run(
   plan : @moonjail.SandboxPlan,
   command : String,
   args? : Array[String] = [],
+  timeout_ms? : Int = 30000,
 ) -> SandboxResult raise RuntimeError {
   if !is_supported() {
     raise UnsupportedPlatform
   }
   if command.is_empty() || command.contains("\u{0}") {
     raise InvalidCommand
+  }
+  if timeout_ms <= 0 {
+    raise InvalidTimeout
   }
   for arg in args {
     if arg.contains("\u{0}") {
@@ -168,11 +188,7 @@ pub fn run(
     raise ArchitectureMismatch(expected=plan.architecture, actual~)
   }
   let abi = landlock_abi()
-  // ABI 3 is needed to deny truncation. Earlier ABIs would silently leave
-  // that operation outside the handled rights set.
-  if (plan.require_landlock || !plan.path_rules.is_empty()) && abi < 3 {
-    raise LandlockUnavailable
-  }
+  check_landlock(plan, abi)
   let encoded = run_ffi(
     plan.seccomp.to_words(),
     encode_argv(command, args),
@@ -187,6 +203,7 @@ pub fn run(
     optional_int64(plan.limits.file_size_bytes),
     optional_int(plan.limits.open_files),
     optional_int(plan.limits.processes),
+    timeout_ms,
   )
   if encoded < 0L {
     raise NativeFailure(encoded.to_int())
@@ -197,6 +214,7 @@ pub fn run(
     0 => Exited(detail)
     1 => Signaled(detail)
     2 => SetupFailed(stage=detail / 1000, errno=detail % 1000)
+    3 => TimedOut
     _ => raise NativeFailure(encoded.to_int())
   }
   { status, landlock_abi: abi, }
