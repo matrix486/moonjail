@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native:
+    name: Native check and tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - name: Check formatting
+        run: moon fmt --check
+      - name: Check types and warnings
+        run: moon check --target native --warn-list +unnecessary_annotation
+      - name: Run tests
+        run: moon test --target native
+      - name: Build CLI
+        run: moon build --target native
+
+  portable:
+    name: Portable policy compiler
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - run: moon check --target all --warn-list +unnecessary_annotation
