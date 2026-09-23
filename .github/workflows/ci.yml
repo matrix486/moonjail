@@ -15,6 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hustcer/setup-moonbit@v1
+      - run: moon update
       - name: Check formatting
         run: moon fmt --check
       - name: Check types and warnings
@@ -48,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hustcer/setup-moonbit@v1
+      - run: moon update
       - run: moon check --target all --warn-list +unnecessary_annotation
 
   package:
@@ -56,6 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hustcer/setup-moonbit@v1
+      - run: moon update
       - name: Keep private application out of the package
         shell: bash
         run: |
