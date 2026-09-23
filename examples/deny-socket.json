@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "deny-socket",
+  "default_action": { "kind": "allow" },
+  "syscall_rules": [
+    { "name": "socket", "action": { "kind": "errno", "errno": 13 } }
+  ],
+  "path_rules": [],
+  "limits": {},
+  "require_landlock": false
+}

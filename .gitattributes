@@ -1,0 +1,7 @@
+* text=auto
+*.mbt text eol=lf
+*.mbti text eol=lf
+*.c text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf

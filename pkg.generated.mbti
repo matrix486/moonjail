@@ -1,0 +1,178 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "magic486/moonjail"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile(Policy, Architecture) -> SandboxPlan raise CompileError
+
+pub fn syscall_number(Architecture, String) -> Int?
+
+pub fn validate_policy(Policy) -> Array[Diagnostic]
+
+pub fn verify_program(SeccompProgram) -> Unit raise CompileError
+
+// Errors
+pub(all) suberror CompileError {
+  InvalidPolicy(Array[Diagnostic])
+  UnknownSyscall(architecture~ : Architecture, name~ : String)
+  InvalidProgram(String)
+} derive(@debug.Debug)
+pub fn CompileError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror ProfileError {
+  InvalidJson(String)
+  UnsupportedVersion(Int)
+  InvalidAction(String)
+  InvalidRight(String)
+} derive(@debug.Debug)
+pub fn ProfileError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum AccessRight {
+  ReadFile
+  ReadDir
+  WriteFile
+  Remove
+  MakeNode
+  Execute
+  Refer
+} derive(Eq, @debug.Debug)
+pub fn AccessRight::equal(Self, Self) -> Bool
+pub fn AccessRight::not_equal(Self, Self) -> Bool
+pub fn AccessRight::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Architecture {
+  X86_64
+  AArch64
+} derive(Eq, @debug.Debug)
+pub fn Architecture::audit_value(Self) -> UInt
+pub fn Architecture::equal(Self, Self) -> Bool
+pub fn Architecture::not_equal(Self, Self) -> Bool
+pub fn Architecture::to_repr(Self) -> @debug.Repr
+
+pub(all) struct BpfInstruction {
+  code : Int
+  jt : Int
+  jf : Int
+  k : UInt
+} derive(Eq, @debug.Debug)
+pub fn BpfInstruction::equal(Self, Self) -> Bool
+pub fn BpfInstruction::not_equal(Self, Self) -> Bool
+pub fn BpfInstruction::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Diagnostic {
+  code : String
+  message : String
+} derive(Eq, @debug.Debug)
+pub fn Diagnostic::equal(Self, Self) -> Bool
+pub fn Diagnostic::not_equal(Self, Self) -> Bool
+pub fn Diagnostic::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PathRule {
+  path : String
+  rights : Array[AccessRight]
+} derive(Eq, @debug.Debug)
+pub fn PathRule::equal(Self, Self) -> Bool
+pub fn PathRule::not_equal(Self, Self) -> Bool
+pub fn PathRule::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Policy {
+  name : String
+  default_action : SeccompAction
+  syscall_rules : Array[SyscallRule]
+  path_rules : Array[PathRule]
+  limits : ResourceLimits
+  require_landlock : Bool
+} derive(Eq, @debug.Debug)
+pub fn Policy::allow_by_default(name? : String) -> Self
+pub fn Policy::allow_path(Self, String, Array[AccessRight]) -> Self
+pub fn Policy::allow_read(Self, String) -> Self
+pub fn Policy::allow_syscall(Self, String) -> Self
+pub fn Policy::allow_write(Self, String) -> Self
+pub fn Policy::deny_by_default(name? : String) -> Self
+pub fn Policy::deny_syscall(Self, String, errno? : Int) -> Self
+pub fn Policy::equal(Self, Self) -> Bool
+pub fn Policy::from_json(String) -> Self raise ProfileError
+pub fn Policy::from_profile(Profile) -> Self
+pub fn Policy::limit_cpu(Self, Int) -> Self
+pub fn Policy::limit_file_size(Self, Int64) -> Self
+pub fn Policy::limit_memory(Self, Int64) -> Self
+pub fn Policy::limit_open_files(Self, Int) -> Self
+pub fn Policy::limit_processes(Self, Int) -> Self
+pub fn Policy::not_equal(Self, Self) -> Bool
+pub fn Policy::on_syscall(Self, String, SeccompAction) -> Self
+pub fn Policy::summary(Self) -> String
+pub fn Policy::to_json(Self) -> String
+pub fn Policy::to_repr(Self) -> @debug.Repr
+pub fn Policy::with_landlock_required(Self, Bool) -> Self
+
+pub(all) enum Profile {
+  Minimal
+  ConsoleTool
+  BuildStep
+} derive(Eq, @debug.Debug)
+pub fn Profile::equal(Self, Self) -> Bool
+pub fn Profile::not_equal(Self, Self) -> Bool
+pub fn Profile::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ResourceLimits {
+  cpu_seconds : Int?
+  address_space_bytes : Int64?
+  file_size_bytes : Int64?
+  open_files : Int?
+  processes : Int?
+} derive(Eq, @debug.Debug)
+pub fn ResourceLimits::equal(Self, Self) -> Bool
+pub fn ResourceLimits::not_equal(Self, Self) -> Bool
+pub fn ResourceLimits::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SandboxPlan {
+  name : String
+  architecture : Architecture
+  default_action : SeccompAction
+  syscall_rules : Array[SyscallRule]
+  seccomp : SeccompProgram
+  path_rules : Array[PathRule]
+  limits : ResourceLimits
+  require_landlock : Bool
+} derive(Eq, @debug.Debug)
+pub fn SandboxPlan::equal(Self, Self) -> Bool
+pub fn SandboxPlan::explain(Self) -> String
+pub fn SandboxPlan::not_equal(Self, Self) -> Bool
+pub fn SandboxPlan::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SeccompAction {
+  Allow
+  Errno(Int)
+  Trap
+  Log
+  KillProcess
+} derive(Eq, @debug.Debug)
+pub fn SeccompAction::equal(Self, Self) -> Bool
+pub fn SeccompAction::not_equal(Self, Self) -> Bool
+pub fn SeccompAction::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SeccompProgram {
+  architecture : Architecture
+  instructions : Array[BpfInstruction]
+} derive(Eq, @debug.Debug)
+pub fn SeccompProgram::disassemble(Self) -> String
+pub fn SeccompProgram::equal(Self, Self) -> Bool
+pub fn SeccompProgram::not_equal(Self, Self) -> Bool
+pub fn SeccompProgram::to_repr(Self) -> @debug.Repr
+pub fn SeccompProgram::to_words(Self) -> FixedArray[UInt]
+
+pub(all) struct SyscallRule {
+  name : String
+  action : SeccompAction
+} derive(Eq, @debug.Debug)
+pub fn SyscallRule::equal(Self, Self) -> Bool
+pub fn SyscallRule::not_equal(Self, Self) -> Bool
+pub fn SyscallRule::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

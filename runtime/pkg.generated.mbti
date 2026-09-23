@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "magic486/moonjail/runtime"
+
+import {
+  "magic486/moonjail",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn current_architecture() -> @moonjail.Architecture raise RuntimeError
+
+pub fn is_supported() -> Bool
+
+pub fn landlock_abi() -> Int
+
+pub fn run(@moonjail.SandboxPlan, String, args? : Array[String]) -> SandboxResult raise RuntimeError
+
+// Errors
+pub(all) suberror RuntimeError {
+  UnsupportedPlatform
+  ArchitectureMismatch(expected~ : @moonjail.Architecture, actual~ : @moonjail.Architecture)
+  LandlockUnavailable
+  InvalidCommand
+  NativeFailure(Int)
+} derive(@debug.Debug)
+pub fn RuntimeError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum RunStatus {
+  Exited(Int)
+  Signaled(Int)
+  SetupFailed(stage~ : Int, errno~ : Int)
+} derive(Eq, ToJson, @debug.Debug)
+pub fn RunStatus::equal(Self, Self) -> Bool
+pub fn RunStatus::not_equal(Self, Self) -> Bool
+pub fn RunStatus::to_json(Self) -> Json
+pub fn RunStatus::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SandboxResult {
+  status : RunStatus
+  landlock_abi : Int
+} derive(Eq, ToJson, @debug.Debug)
+pub fn SandboxResult::equal(Self, Self) -> Bool
+pub fn SandboxResult::not_equal(Self, Self) -> Bool
+pub fn SandboxResult::to_json(Self) -> String
+pub fn SandboxResult::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

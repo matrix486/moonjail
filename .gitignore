@@ -1,0 +1,9 @@
+/_build/
+/target/
+/.mooncakes/
+/.repos/
+*.exe
+*.dll
+*.so
+*.dylib
+

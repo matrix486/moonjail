@@ -1,0 +1,12 @@
+import {
+  "magic486/moonjail",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+}
+
+supported_targets = "native"
+
+options(
+  "native-stub": [ "moonjail_runtime.c" ],
+)

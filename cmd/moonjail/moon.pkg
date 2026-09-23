@@ -1,0 +1,10 @@
+import {
+  "magic486/moonjail" @sandbox,
+  "magic486/moonjail/runtime",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
